@@ -5,7 +5,9 @@
 > 양자 컴퓨터를 "0과 1을 동시에"에서 멈추지 않고, **우리가 배운 OS 개념(스케줄링·가상 메모리·드라이버·
 > 오류 검출·디버깅)으로 다시 읽는다.** 큐비트는 수백 μs 만에 상태를 잃기 때문에, 양자 OS의 핵심 자원은 '시간'이다.
 
-▶ **완성 영상:** [`media/quantum_os_shorts.mp4`](media/quantum_os_shorts.mp4) · 📄 **레포트:** [`docs/report.md`](docs/report.md)
+<p align="center"><img src="media/preview.gif" width="200" alt="영상 미리보기 (2배속)"></p>
+
+▶ **완성 영상:** [`media/quantum_os_shorts.mp4`](media/quantum_os_shorts.mp4) · 📄 **레포트:** [`docs/report.pdf`](docs/report.pdf) ([md](docs/report.md))
 
 ## 구성 (과제 조건: 0–5초 타이틀 · 5–55초 내용 · 55–60초 한줄 평)
 
@@ -27,7 +29,8 @@
 | 경로 | 내용 |
 |---|---|
 | `media/quantum_os_shorts.mp4` | 완성 영상 (코드로 생성한 모션그래픽 버전) |
-| `docs/report.md` | 레포트 — 기획 의도, 콘티, 제작 방법, 사실 확인, 참고 문헌 |
+| `docs/report.pdf` · `report.md` | 레포트 — 기획 의도, 콘티(장면 캡처), 제작 방법, 사실 확인, 참고 문헌 |
+| `make_report_pdf.py` | `report.md` → A4 PDF 변환 (Chrome/Edge 명령줄 인쇄) |
 | `make_video.py` | 영상 전체를 코드로 그리는 생성기 (Pillow + ffmpeg, 배경음 직접 합성) |
 | `compose.py` | **AI 애니메이션 버전** 합성기 — `clips/`의 AI 영상 + `voice/`의 AI 내레이션 + 자막·BGM |
 | `docs/prompts.md` | Kling 등 영상 AI용 장면별 프롬프트 (마스코트 「큐비」) |

@@ -3,7 +3,7 @@
   - 출력: 360x640 (9:16), 30fps, 60초, H.264 + AAC
   - 원리: 매 프레임을 720x1280(2배)로 그린 뒤 360x640으로 줄여(슈퍼샘플링) 계단 현상을 없앤다.
           프레임은 디스크에 저장하지 않고 ffmpeg 표준입력으로 바로 흘려보낸다(파이프).
-사용법: python3 make_video.py [--preview]   (--preview: 장면별 대표 프레임 PNG만 저장)
+사용법: python3 make_video.py [--preview | --thumbnail]   (--preview: 장면별 대표 프레임, --thumbnail: 표지 720x1280)
 """
 import math, random, subprocess, sys, wave, os
 import numpy as np
@@ -421,7 +421,8 @@ SCENES = [(0, 5.4, sc_title), (4.6, 13.4, sc_bit_qubit), (12.6, 20.4, sc_power),
           (27.7, 33.3, sc_sched), (32.7, 38.3, sc_memory), (37.7, 43.3, sc_driver), (42.7, 48.4, sc_ecc),
           (47.6, 55.4, sc_debug), (54.6, 60.1, sc_outro)]
 
-def render(t):
+def render(t, full=False, bar=True):
+    """t초 장면 한 장. full=True 면 2배 크기(720x1280) 그대로 돌려준다 (썸네일용)"""
     img = background()
     d = ImageDraw.Draw(img, "RGBA")
     draw_stars(d, t)
@@ -429,9 +430,9 @@ def render(t):
         if a <= t <= b:
             fn(img, d, t)
             d = ImageDraw.Draw(img, "RGBA")   # glow_layer가 paste한 뒤 새 draw로
-    if t > 0.3:
+    if t > 0.3 and bar:
         progress(d, t)
-    return img.resize((W, H), Image.LANCZOS)
+    return img if full else img.resize((W, H), Image.LANCZOS)
 
 # =====================================================================
 # 사운드: 신시사이저 패드 + 전환 효과음 + 측정 '틱' (모두 직접 합성 → 저작권 문제 없음)
@@ -487,6 +488,10 @@ def make_audio(path, sr=44100):
         w.setnchannels(1); w.setsampwidth(2); w.setframerate(sr); w.writeframes(pcm.tobytes())
 
 def main():
+    if "--thumbnail" in sys.argv:       # 업로드·제출용 표지 (720x1280, 타이틀 장면)
+        os.makedirs(os.path.join(OUT_DIR, "media"), exist_ok=True)
+        out = os.path.join(OUT_DIR, "media", "thumbnail.png")
+        render(3.2, full=True, bar=False).save(out); print("saved", out); return
     if "--preview" in sys.argv:
         times = [2.5, 4.9, 9.5, 18.5, 26.5, 31.5, 36.5, 41.5, 46.5, 50.0, 53.5, 59.0]
         frames = [render(t) for t in times]

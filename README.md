@@ -30,6 +30,8 @@
 |---|---|
 | `media/quantum_os_shorts.mp4` | 완성 영상 (코드로 생성한 모션그래픽 버전) |
 | `docs/report.pdf` · `report.md` | 레포트 — 기획 의도, 콘티(장면 캡처), 제작 방법, 사실 확인, 참고 문헌 |
+| `check_video.py` | **제출 전 조건 검사** — 360×640·9:16·60초·소리 자동 판정, 타이틀/한줄 평 구간 캡처 |
+| `media/thumbnail.png` | 표지·썸네일 (720×1280) |
 | `make_report_pdf.py` | `report.md` → A4 PDF 변환 (Chrome/Edge 명령줄 인쇄) |
 | `make_video.py` | 영상 전체를 코드로 그리는 생성기 (Pillow + ffmpeg, 배경음 직접 합성) |
 | `compose.py` | **AI 애니메이션 버전** 합성기 — `clips/`의 AI 영상 + `voice/`의 AI 내레이션 + 자막·BGM |
@@ -42,9 +44,12 @@
 ```bash
 pip install pillow numpy          # + ffmpeg 필요 (docs/실행방법.md)
 python make_video.py              # 코드 애니메이션 버전 → media/quantum_os_shorts.mp4
+python make_video.py --thumbnail  # 표지 → media/thumbnail.png
 python compose.py --preview       # AI 버전 장면 미리보기 → preview_ai.png
 python compose.py --audio         # 내레이션 길이표 + mix.wav
 python compose.py                 # AI 버전 완성본 → media/quantum_os_ai.mp4
+python check_video.py             # 제출 전 조건 검사 (AI 버전이 있으면 그것을, 없으면 기본 영상을)
+python make_report_pdf.py         # 레포트 PDF → docs/report.pdf
 ```
 
 `clips/`·`voice/`가 비어 있으면 해당 장면은 코드 애니메이션과 배경음악으로 대체되므로, 클립을 하나씩 넣으며 확인할 수 있다.

@@ -162,6 +162,55 @@ def bloch(d, cx, cy, R, theta, phi, alpha=1.0, vec_len=1.0, color=CYAN, labels=T
         dot(d, ex, ey, 4, color + (a,))
     dot(d, cx, cy, 2.5, (220, 230, 255, a))
 
+def qubi(d, cx, cy, r, t, mood="happy", a=1.0, wave=False):
+    """마스코트 「큐비」: 유리구슬 큐비트. mood = happy · normal · dizzy · surprised"""
+    if a <= 0.01 or r < 2: return
+    A = lambda v: int(v * a)
+    cy += r * 0.07 * math.sin(t * 2.4)                     # 둥실둥실
+    if wave:                                               # 손 흔들기 (몸 뒤에 먼저 그린다)
+        ang = -0.9 + 0.55 * math.sin(t * 9)
+        hx, hy = cx + r * 0.9 + r * 0.5 * math.cos(ang), cy - r * 0.05 + r * 0.5 * math.sin(ang)
+        line(d, [(cx + r * 0.8, cy + r * 0.1), (hx, hy)], CYAN + (A(220),), max(1.5, r * 0.07))
+        dot(d, hx, hy, r * 0.15, CYAN + (A(255),))
+    d.ellipse([S(cx - r), S(cy - r), S(cx + r), S(cy + r)], fill=(90, 230, 255, A(48)), outline=CYAN + (A(235),), width=S(2))
+    d.ellipse([S(cx - r * 0.62), S(cy - r * 0.72), S(cx - r * 0.2), S(cy - r * 0.45)], fill=(255, 255, 255, A(95)))
+    ink = (12, 14, 34, A(255))
+    ex, ey, ew, eh = r * 0.32, cy - r * 0.08, r * 0.17, r * 0.24
+    blink = (t % 3.3) < 0.13 and mood in ("happy", "normal")
+    lw = lambda k: max(1, int(round(S(max(1.0, r * k)))))
+    for sx in (-1, 1):
+        x = cx + sx * ex
+        if mood == "happy" and not blink:                  # ^ ^ 눈웃음
+            d.arc([S(x - ew), S(ey - eh * 0.6), S(x + ew), S(ey + eh * 1.0)], 200, 340, fill=ink, width=lw(0.07))
+        elif mood == "dizzy":                              # 빙글빙글 눈
+            for k in range(3):
+                rr = ew * (1 - k * 0.3)
+                st = (t * 400 * sx + k * 120) % 360
+                d.arc([S(x - rr), S(ey - rr), S(x + rr), S(ey + rr)], st, st + 250, fill=ink, width=lw(0.075))
+        else:
+            h = eh * (1.35 if mood == "surprised" else 1.0) * (0.15 if blink else 1)
+            w = ew * (1.25 if mood == "surprised" else 1.0)
+            d.ellipse([S(x - w), S(ey - h), S(x + w), S(ey + h)], fill=(255, 255, 255, A(250)))
+            if not blink:
+                pr = w * (0.45 if mood == "surprised" else 0.62)
+                dot(d, x + w * 0.12, ey + h * 0.12, pr, ink)
+                dot(d, x + w * 0.3, ey - h * 0.3, pr * 0.35, (255, 255, 255, A(255)))
+    my = cy + r * 0.3
+    if mood == "surprised":
+        d.ellipse([S(cx - r * 0.09), S(my - r * 0.11), S(cx + r * 0.09), S(my + r * 0.11)], fill=ink)
+    elif mood == "dizzy":
+        pts = [(cx - r * 0.2 + i * r * 0.05, my + r * 0.04 * math.sin(i * 1.6 + t * 8)) for i in range(9)]
+        line(d, pts, ink, max(1.0, r * 0.05))
+        dx, dy = cx + r * 0.72, cy - r * 0.62 + (t * 18) % (r * 0.4)          # 땀방울
+        d.polygon([(S(dx), S(dy - r * 0.16)), (S(dx - r * 0.08), S(dy)), (S(dx + r * 0.08), S(dy))], fill=(150, 210, 255, A(220)))
+        dot(d, dx, dy + r * 0.02, r * 0.08, (150, 210, 255, A(220)))
+    else:
+        d.arc([S(cx - r * 0.18), S(my - r * 0.14), S(cx + r * 0.18), S(my + r * 0.12)], 20, 160, fill=ink, width=lw(0.06))
+    if mood == "happy":
+        for sx in (-1, 1):
+            x = cx + sx * r * 0.55
+            d.ellipse([S(x - r * 0.12), S(my - r * 0.1), S(x + r * 0.12), S(my + r * 0.03)], fill=(255, 120, 190, A(110)))
+
 def chapter(d, t, num, label, a):
     """왼쪽 위 챕터 태그"""
     if a <= 0.01: return
@@ -183,8 +232,7 @@ def sc_title(img, d, t):                       # 0~5s 타이틀
     a = win(t, 0, 5.0, 0.4)
     # 회전하는 블로흐 구 + 궤도 입자
     k = ease_out(t / 1.2)
-    glow_layer(img, lambda g: bloch(g, W / 2, 205, 70 * k, 1.1 + 0.4 * math.sin(t * 1.3), t * 2.2,
-                                     alpha=a, labels=False, color=CYAN), radius=6, strength=1.2)
+    glow_layer(img, lambda g: qubi(g, W / 2, 205, 66 * k, t, "happy", a), radius=6, strength=0.7)
     for i in range(3):
         u = t * (1.4 + i * 0.5) + i * 2.1
         ox = W / 2 + 105 * math.cos(u); oy = 205 + 36 * math.sin(u) * (1 if i % 2 else -1)
@@ -259,6 +307,7 @@ def sc_decoherence(img, d, t):                 # 20~28s 결어긋남
     col = tuple(int(CYAN[i] * life + RED[i] * (1 - life)) for i in range(3))
     bloch(d, W / 2, 200, 70, 1.2, lt * 2.0, alpha=a, vec_len=max(0.0, life), color=col,
           blur_noise=noise, t=lt)
+    qubi(d, 306, 165, 32, lt, "normal" if life > 0.55 else "dizzy", a * ease((lt - 0.5) / 0.4))
     # 수명 막대
     rrect(d, 50, 315, W - 50, 333, 9, outline=(255, 255, 255, int(120 * a)), width=1)
     if life > 0.01:
@@ -394,6 +443,7 @@ def sc_debug(img, d, t):                       # 48~55s 디버깅의 역설
     if flash > 0:
         d.rectangle([0, 0, S(W), S(H)], fill=(255, 255, 255, int(110 * flash * a)))
     glow_layer(img, lambda g: bloch(g, W / 2, 315, 62, th, ph, alpha=a, color=col), radius=5)
+    qubi(d, 306, 300, 24, lt, "surprised" if measured else "normal", a)
     a2 = a * ease((lt - 3.4) / 0.4)
     text(d, "보는 순간 상태가 결정된다 (측정)", W / 2, 432, 16, GOLD, a2)
     text(d, "중간값을 찍어 보는 디버깅이\n양자에서는 계산을 망가뜨린다", W / 2, 475, 14, WHITE, a2)
@@ -403,8 +453,7 @@ def sc_debug(img, d, t):                       # 48~55s 디버깅의 역설
 def sc_outro(img, d, t):                       # 55~60s 한줄 평
     a = ease((t - 55) / 0.5) * ease((60 - t) / 0.6)
     lt = t - 55
-    glow_layer(img, lambda g: bloch(g, W / 2, 175, 44, 1.0 + 0.3 * math.sin(lt * 2), lt * 2,
-                                     alpha=a, labels=False, color=CYAN), radius=6)
+    glow_layer(img, lambda g: qubi(g, W / 2, 175, 46, lt, "happy", a, wave=True), radius=6, strength=0.7)
     text(d, "한 줄 평", W / 2, 268, 13, MAG, a)
     line(d, [(W / 2 - 40, 284), (W / 2 + 40, 284)], MAG + (int(200 * a),), 1)
     a1 = a * ease((lt - 0.3) / 0.4); a2 = a * ease((lt - 1.1) / 0.4)

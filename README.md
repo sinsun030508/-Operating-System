@@ -52,7 +52,7 @@ python check_video.py             # 제출 전 조건 검사 (AI 버전이 있�
 python make_report_pdf.py         # 레포트 PDF → docs/report.pdf
 ```
 
-`clips/`·`voice/`가 비어 있으면 해당 장면은 코드 애니메이션과 배경음악으로 대체되므로, 클립을 하나씩 넣으며 확인할 수 있다.
+`clips/`에는 AI **영상**(mp4 등) 또는 AI **이미지**(png·jpg·webp)를 넣는다 — 이미지는 장면마다 다른 카메라 움직임으로 영상처럼 만든다(영상 크레딧이 부족할 때, `docs/prompts.md` 참고). `clips/`·`voice/`가 비어 있으면 해당 장면은 코드 애니메이션과 배경음악으로 대체되므로, 클립을 하나씩 넣으며 확인할 수 있다.
 
 ## 참고 문헌
 

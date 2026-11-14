@@ -1,15 +1,16 @@
 """
 AI 생성 클립 + 자막 + BGM 합성기  →  360x640, 30fps, 60초
-  clips/ 폴더에 01~10 으로 시작하는 영상(mp4/mov/webm)을 넣고 실행:
+  clips/ 폴더에 01~10 으로 시작하는 영상(mp4/mov/webm) 또는 이미지(png/jpg/webp)를 넣고 실행:
       python3 compose.py              # 완성본 media/quantum_os_ai.mp4
       python3 compose.py --preview    # 장면별 대표 프레임만 preview_ai.png
+  - 이미지는 장면마다 다른 카메라 움직임(다가가기·물러나기·가로/세로 흐름)으로 움직인다.
   - 어떤 해상도·비율·fps 든 받아서 화면을 꽉 채우도록 확대 후 가운데를 잘라 360x640 으로 만든다.
   - 클립 길이가 장면보다 짧으면: 1.75배 이내면 슬로모션, 그 이상이면 반복. 길면 앞부분만 쓴다.
   - 클립이 없는 장면은 make_video.py 의 기존 장면(코드 애니메이션)으로 자동 대체한다.
   - 클립 오디오는 쓰지 않고, 장면 타이밍에 맞춘 BGM(bgm.wav)을 입힌다.
   - 피사체가 가운데가 아니면 CROP_X 에서 장면별로 가로 위치(0=왼쪽, 0.5=가운데, 1=오른쪽)를 바꾼다.
 """
-import glob, os, subprocess, sys
+import glob, math, os, subprocess, sys
 import numpy as np
 from PIL import Image, ImageDraw
 import make_video as mv
@@ -115,11 +116,43 @@ def overlay(img, k, t):
     mv.progress(ImageDraw.Draw(img, "RGBA"), t)
 
 # ---------- 클립 읽기 ----------
+VIDEO_EXT = ("mp4", "mov", "webm", "mkv", "m4v")
+IMAGE_EXT = ("png", "jpg", "jpeg", "webp")
+
 def find_clip(k):
-    for ext in ("mp4", "mov", "webm", "mkv", "m4v"):
+    """장면 번호로 시작하는 영상을 먼저, 없으면 이미지를 찾는다 (같은 번호면 영상이 이긴다)"""
+    for ext in VIDEO_EXT + IMAGE_EXT + tuple(e.upper() for e in VIDEO_EXT + IMAGE_EXT):
         m = sorted(glob.glob(os.path.join(CLIP_DIR, f"{k + 1:02d}*.{ext}")))
         if m: return m[0]
     return None
+
+# 이미지 장면의 카메라 움직임 (켄 번스 효과): 장면마다 번갈아 쓴다
+#   (시작 확대, 끝 확대, 가로 중심 시작→끝, 세로 중심 시작→끝)  중심은 0~1 (0.5 = 가운데)
+MOVES = [(1.00, 1.14, (0.5, 0.5), (0.5, 0.45)),    # 천천히 다가가기
+         (1.14, 1.00, (0.5, 0.45), (0.5, 0.5)),    # 천천히 물러나기
+         (1.10, 1.10, (0.30, 0.5), (0.70, 0.5)),   # 왼쪽 → 오른쪽
+         (1.10, 1.10, (0.5, 0.35), (0.5, 0.62))]   # 위 → 아래
+
+class StillMotion:
+    """이미지 한 장을 카메라가 움직이며 찍는 것처럼 보여 준다"""
+    def __init__(self, path, k, dur):
+        self.img = Image.open(path).convert("RGB")
+        self.k, self.dur = k, dur
+        iw, ih = self.img.size
+        self.s0 = max(W / iw, H / ih) * 1.005      # 화면을 꽉 채우는 배율 (+0.5%: 잘라 올 창이 항상 이미지 안에 들도록)
+        self.move = MOVES[k % len(MOVES)]
+    def frame(self, lt):
+        z0, z1, (x0, y0), (x1, y1) = self.move
+        p = mv.ease(lt / self.dur)
+        z = z0 + (z1 - z0) * p
+        cxf = x0 + (x1 - x0) * p + (CROP_X[self.k] - 0.5)
+        cyf = y0 + (y1 - y0) * p + 0.006 * math.sin(lt * 1.7)    # 아주 살짝 둥실
+        iw, ih = self.img.size
+        ww, wh = W / (self.s0 * z), H / (self.s0 * z)             # 원본에서 잘라 올 창 크기
+        cx = min(max(cxf * iw, ww / 2 + 1), iw - ww / 2 - 1)      # 1px 안쪽: 이미지 밖(검은색)을 읽지 않게
+        cy = min(max(cyf * ih, wh / 2 + 1), ih - wh / 2 - 1)
+        box = (cx - ww / 2, cy - wh / 2, cx + ww / 2, cy + wh / 2)
+        return self.img.transform((W, H), Image.EXTENT, box, resample=Image.BICUBIC)
 
 def load_clip(path, k, max_sec=15):
     cx = CROP_X[k]
@@ -142,13 +175,18 @@ class Scene:
         self.k = k; self.a, self.b = SLOTS[k]
         path = find_clip(k)
         self.path = path
-        if path:
+        self.still = None
+        if path and path.lower().endswith(IMAGE_EXT):
+            self.still = StillMotion(path, k, self.b - self.a + XFADE)
+        elif path:
             self.frames = load_clip(path, k)
             need = int((self.b - self.a + XFADE) * FPS)
             self.idx = mapper(len(self.frames), need)
     def frame(self, t):
         if not self.path:                      # 대체: 기존 코드 애니메이션 (자막 포함)
             return mv.render(t), False
+        if self.still:                         # AI 이미지 + 카메라 움직임
+            return self.still.frame(max(0.0, t - self.a)), True
         i = max(0, int(round((t - self.a) * FPS)))
         return Image.fromarray(self.frames[self.idx(i)]), True
 
@@ -267,7 +305,7 @@ def main():
         if k not in scenes:
             scenes[k] = Scene(k)
             print(f"장면 {k + 1:02d}: {os.path.basename(scenes[k].path) if scenes[k].path else '클립 없음 → 기존 애니메이션'}"
-                  + (f" ({len(scenes[k].frames)}프레임)" if scenes[k].path else ""), flush=True)
+                  + (" (이미지 + 카메라 움직임)" if scenes[k].still else f" ({len(scenes[k].frames)}프레임)" if scenes[k].path else ""), flush=True)
         for old in [o for o in scenes if o < k - 1]: del scenes[old]   # 메모리 절약
         return scenes[k]
     class Lazy(dict):

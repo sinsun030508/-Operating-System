@@ -35,6 +35,7 @@
 | `make_report_pdf.py` | `report.md` → A4 PDF 변환 (Chrome/Edge 명령줄 인쇄) |
 | `make_video.py` | 영상 전체를 코드로 그리는 생성기 (Pillow + ffmpeg, 배경음 직접 합성) |
 | `compose.py` | **AI 애니메이션 버전** 합성기 — `clips/`의 AI 영상 + `voice/`의 AI 내레이션 + 자막·BGM |
+| `docs/이미지_프롬프트.md` | **한국어 AI 이미지 프롬프트** — 무료 사이트(Gemini·ChatGPT·Dreamina), 캐릭터 시트, 장면 10개 |
 | `docs/prompts.md` | Kling 등 영상 AI용 장면별 프롬프트 (마스코트 「큐비」) |
 | `docs/narration.md` | 장면 길이에 맞춘 내레이션 대본 (클로바더빙 등 TTS용) |
 | `docs/실행방법.md` | Windows · Mac 실행 방법과 자주 나는 오류 |

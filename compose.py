@@ -21,6 +21,7 @@ CLIP_DIR = os.path.join(HERE, "clips")
 SLOTS = [(0, 5), (5, 13), (13, 20), (20, 28), (28, 33), (33, 38), (38, 43), (43, 48), (48, 55), (55, 60)]
 CROP_X = [0.5] * 10          # 장면별 가로 자르기 위치
 XFADE = 0.3                  # 장면 사이 겹침(초)
+TRIM_BOTTOM = 0.06           # AI 이미지 아래쪽을 이만큼 잘라 낸다 (무료 이미지 툴의 구석 워터마크 가리기, 0 이면 안 자름)
 
 # ---------- 내레이션 (voice/01.mp3 ~ voice/10.mp3, 또는 통파일 voice/full.mp3) ----------
 VOICE_DIR = os.path.join(HERE, "voice")
@@ -136,7 +137,10 @@ MOVES = [(1.00, 1.14, (0.5, 0.5), (0.5, 0.45)),    # 천천히 다가가기
 class StillMotion:
     """이미지 한 장을 카메라가 움직이며 찍는 것처럼 보여 준다"""
     def __init__(self, path, k, dur):
-        self.img = Image.open(path).convert("RGB")
+        img = Image.open(path).convert("RGB")
+        if TRIM_BOTTOM > 0:                        # 아래 구석 워터마크가 화면에 비치지 않게
+            img = img.crop((0, 0, img.width, int(img.height * (1 - TRIM_BOTTOM))))
+        self.img = img
         self.k, self.dur = k, dur
         iw, ih = self.img.size
         self.s0 = max(W / iw, H / ih) * 1.005      # 화면을 꽉 채우는 배율 (+0.5%: 잘라 올 창이 항상 이미지 안에 들도록)

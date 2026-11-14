@@ -151,12 +151,68 @@ class StillMotion:
         z = z0 + (z1 - z0) * p
         cxf = x0 + (x1 - x0) * p + (CROP_X[self.k] - 0.5)
         cyf = y0 + (y1 - y0) * p + 0.006 * math.sin(lt * 1.7)    # 아주 살짝 둥실
+        if self.k == 3:                                           # 04 결어긋남: 갈수록 심해지는 떨림
+            amp = 0.012 * p
+            cxf += amp * (math.sin(lt * 31) + math.sin(lt * 53)) / 2
+            cyf += amp * (math.sin(lt * 37) + math.sin(lt * 47)) / 2
         iw, ih = self.img.size
         ww, wh = W / (self.s0 * z), H / (self.s0 * z)             # 원본에서 잘라 올 창 크기
         cx = min(max(cxf * iw, ww / 2 + 1), iw - ww / 2 - 1)      # 1px 안쪽: 이미지 밖(검은색)을 읽지 않게
         cy = min(max(cyf * ih, wh / 2 + 1), ih - wh / 2 - 1)
         box = (cx - ww / 2, cy - wh / 2, cx + ww / 2, cy + wh / 2)
         return self.img.transform((W, H), Image.EXTENT, box, resample=Image.BICUBIC)
+
+# ---------- 이미지 장면이 스스로 움직이게 하는 효과 (2배 크기 화면 위에) ----------
+FX_SPARKLE_N = {0: 55, 9: 60}                                  # 장면별 빛 입자 수 (기본 34)
+_sparkles = {}
+def _sparkle_set(k):
+    if k not in _sparkles:
+        import random
+        r = random.Random(100 + k)
+        _sparkles[k] = [(r.random(), r.random(), r.uniform(0.01, 0.05), r.uniform(0.7, 2.2), r.uniform(0, 6.28),
+                         r.choice([(150, 240, 255), (255, 255, 255), (255, 150, 220)]))
+                        for _ in range(FX_SPARKLE_N.get(k, 34))]
+    return _sparkles[k]
+
+def still_fx(big, k, lt, dur):
+    """밝기 숨쉬기 · 장면별 효과(02 색 아른거림, 04 깜빡임·잡음, 09 플래시) · 떠다니는 빛 입자"""
+    p = mv.clamp(lt / dur)
+    arr = np.asarray(big, np.float32)
+    gain = 1 + 0.06 * math.sin(lt * 2.2)                       # 숨쉬듯 밝아졌다 어두워짐
+    if k == 1:                                                 # 02 중첩: 청록 ↔ 분홍
+        w = 0.10 * math.sin(lt * 3.0)
+        tint = np.array(CYAN if w > 0 else MAG, np.float32)
+        arr = arr * (1 - abs(w)) + tint * abs(w)
+    if k == 3:                                                 # 04 결어긋남: 색이 바래고 깜빡인다
+        g = 0.55 * p
+        gray = arr.mean(axis=2, keepdims=True)
+        arr = arr * (1 - g) + gray * g
+        import random
+        if p > 0.25 and random.Random(int(lt * 14)).random() < 0.35 * p:
+            gain *= 0.62
+    arr = arr * gain
+    if k == 8:                                                 # 09 측정: 효과음(50.6초)과 같은 순간 플래시
+        fl = mv.clamp(1 - abs(lt - 2.6) / 0.3)
+        arr = arr + (255 - arr) * 0.85 * fl
+    img = Image.fromarray(np.clip(arr, 0, 255).astype(np.uint8))
+    d = ImageDraw.Draw(img, "RGBA")
+    if k == 3 and p > 0.4:                                     # 04: 지지직 잡음 줄
+        import random
+        r = random.Random(int(lt * 20))
+        for _ in range(r.randint(0, 3)):
+            y = r.uniform(0, H) * S(1); hh = r.uniform(1, 4) * S(1)
+            d.rectangle([0, y, W * S(1), y + hh], fill=(255, 255, 255, int(70 * p)))
+    rise = 0.09 if k == 9 else 0.0                             # 10 한줄 평: 위로 떠오른다
+    for x0, y0, sp, sz, ph, col in _sparkle_set(k):
+        x = (x0 + 0.02 * math.sin(lt * 0.8 + ph)) * W
+        y = ((y0 - (sp + rise) * lt) % 1.0) * H
+        tw = 0.5 + 0.5 * math.sin(lt * 3.1 + ph)               # 반짝임
+        a = int(200 * tw)
+        if a < 12: continue
+        R = sz * S(1)
+        d.ellipse([S(x) - R * 3, S(y) - R * 3, S(x) + R * 3, S(y) + R * 3], fill=col + (a // 6,))
+        d.ellipse([S(x) - R, S(y) - R, S(x) + R, S(y) + R], fill=col + (a,))
+    return img
 
 def load_clip(path, k, max_sec=15):
     cx = CROP_X[k]
@@ -200,6 +256,8 @@ def compose_frame(scenes, t):
     img, is_clip = cur.frame(t)
     if is_clip:
         big = img.resize((W * S(1), H * S(1)), Image.BILINEAR)
+        if cur.still:
+            big = still_fx(big, k, t - cur.a, cur.b - cur.a)
         overlay(big, k, t)
         img = big.resize((W, H), Image.LANCZOS)
     # 장면 전환 크로스페이드
@@ -208,6 +266,8 @@ def compose_frame(scenes, t):
         pimg, p_clip = prev.frame(t)
         if p_clip:
             pbig = pimg.resize((W * S(1), H * S(1)), Image.BILINEAR)
+            if prev.still:
+                pbig = still_fx(pbig, k - 1, t - prev.a, prev.b - prev.a)
             overlay(pbig, k - 1, min(t, SLOTS[k - 1][1] - 0.01))
             pimg = pbig.resize((W, H), Image.LANCZOS)
         img = Image.blend(pimg, img, mv.ease((t - SLOTS[k][0]) / XFADE))

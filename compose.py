@@ -28,7 +28,7 @@ VOICE_DIR = os.path.join(HERE, "voice")
 VOICE_LEAD = 0.3             # 장면이 시작되고 몇 초 뒤에 말을 시작할지
 MAX_SPEEDUP = 1.25           # 장면보다 길면 이 배율까지는 자동으로 빠르게 재생
 DUCK = 0.3                   # 말하는 동안 배경음악 크기 (1 = 그대로)
-VOICE_CREDIT = ""            # 무료 TTS 출처 표기 문구. 예: "음성: 네이버 클로바더빙" (한줄 평 화면 아래에 작게)
+VOICE_CREDIT = "음성: 네이버 클로바더빙"            # 무료 TTS 출처 표기 문구. 예: "음성: 네이버 클로바더빙" (한줄 평 화면 아래에 작게)
 SR = 44100
 AUDIO_EXT = ("mp3", "wav", "m4a", "ogg", "aac", "flac")
 
@@ -304,6 +304,28 @@ def trim_silence(v, thr=0.02):
     if len(idx) == 0: return v
     return v[max(0, idx[0] - int(SR * 0.03)): idx[-1] + int(SR * 0.1)]
 
+MAX_PAUSE = 0.2              # 문장 사이 쉼을 이 길이(초)까지 줄인다 (TTS 는 마침표마다 0.4~0.6초 쉰다)
+
+def squeeze_pauses(v, max_pause=None):
+    """말 사이의 긴 쉼만 짧게 줄인다 — 목소리 속도와 높이는 그대로"""
+    max_pause = MAX_PAUSE if max_pause is None else max_pause
+    env = moving_avg(np.abs(v), SR * 0.02)
+    quiet = env < 0.03 * env.max()
+    keep = np.ones(len(v), bool)
+    i, n, lim = 0, len(v), int(max_pause * SR)
+    while i < n:
+        if quiet[i]:
+            j = i
+            while j < n and quiet[j]: j += 1
+            if j - i > lim:                         # 긴 쉼: 가운데를 잘라 lim 만 남긴다
+                cut0 = i + lim // 2; cut1 = j - lim // 2
+                keep[cut0:cut1] = False
+            i = j
+        else:
+            i += 1
+    out = v[keep]
+    return out
+
 def level(v, target=0.12):
     """파일마다 다른 음량을 같은 크기(RMS)로 맞춘다"""
     env = moving_avg(np.abs(v), SR * 0.05)
@@ -333,7 +355,7 @@ def build_audio():
             a0, b0 = SLOTS[k]
             if not path:
                 rows.append((f"{k + 1:02d}", "-", "", f"{a0}~{b0}초", "없음")); continue
-            v = level(trim_silence(load_audio(path)))
+            v = level(squeeze_pauses(trim_silence(load_audio(path))))
             start = a0 + VOICE_LEAD; avail = b0 - start - 0.15
             dur = len(v) / SR; note = "OK"
             if dur > avail:

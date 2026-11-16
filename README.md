@@ -5,9 +5,9 @@
 > 양자 컴퓨터를 "0과 1을 동시에"에서 멈추지 않고, **우리가 배운 OS 개념(스케줄링·가상 메모리·드라이버·
 > 오류 검출·디버깅)으로 다시 읽는다.** 큐비트는 수백 μs 만에 상태를 잃기 때문에, 양자 OS의 핵심 자원은 '시간'이다.
 
-<p align="center"><img src="media/preview.gif" width="200" alt="영상 미리보기 (2배속)"></p>
+<p align="center"><img src="media/preview_ai.gif" width="160" alt="제출본 미리보기 (2배속)"></p>
 
-▶ **완성 영상:** [`media/quantum_os_shorts.mp4`](media/quantum_os_shorts.mp4) · 📄 **레포트:** [`docs/report.pdf`](docs/report.pdf) ([md](docs/report.md))
+▶ **제출 영상:** [`media/quantum_os_ai.mp4`](media/quantum_os_ai.mp4) (ChatGPT 이미지 + 코드 애니메이션) · 코드 전용판 [`quantum_os_shorts.mp4`](media/quantum_os_shorts.mp4) · 📄 **레포트:** [`docs/report.pdf`](docs/report.pdf) ([md](docs/report.md))
 
 ## 구성 (과제 조건: 0–5초 타이틀 · 5–55초 내용 · 55–60초 한줄 평)
 
@@ -28,7 +28,9 @@
 
 | 경로 | 내용 |
 |---|---|
-| `media/quantum_os_shorts.mp4` | 완성 영상 (코드로 생성한 모션그래픽 버전) |
+| `media/quantum_os_ai.mp4` | **제출 영상** — 01–04·10 ChatGPT 이미지(카메라 움직임·빛 입자·장면별 효과), 05–09 코드 모션그래픽 |
+| `clips/` | ChatGPT로 만든 장면 이미지 |
+| `media/quantum_os_shorts.mp4` | 코드 전용판 (모든 장면을 코드로 생성) |
 | `docs/report.pdf` · `report.md` | 레포트 — 기획 의도, 콘티(장면 캡처), 제작 방법, 사실 확인, 참고 문헌 |
 | `check_video.py` | **제출 전 조건 검사** — 360×640·9:16·60초·소리 자동 판정, 타이틀/한줄 평 구간 캡처 |
 | `media/thumbnail.png` | 표지·썸네일 (720×1280) |

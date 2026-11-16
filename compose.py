@@ -244,7 +244,9 @@ class Scene:
             self.idx = mapper(len(self.frames), need)
     def frame(self, t):
         if not self.path:                      # 대체: 기존 코드 애니메이션 (자막 포함)
-            return mv.render(t), False
+            # 원래 영상도 장면 경계에서 자기 페이드를 하므로, 경계 0.3초는 장면이 다 보이는 시각으로 묶는다
+            # (안 묶으면 우리 전환 위에 원래 전환이 겹쳐 글자가 두 번 보였다)
+            return mv.render(min(max(t, self.a + 0.3), self.b - 0.3)), False
         if self.still:                         # AI 이미지 + 카메라 움직임
             return self.still.frame(max(0.0, t - self.a)), True
         i = max(0, int(round((t - self.a) * FPS)))
